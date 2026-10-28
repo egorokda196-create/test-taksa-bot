@@ -1,0 +1,411 @@
+<!-- ============================================ -->
+<!-- Раздел 1 — Начало документа                   -->
+<!-- ============================================ -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Такса-работяга</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<!-- ============================================ -->
+<!-- Раздел 2 — Стили                              -->
+<!-- ============================================ -->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
+    background: var(--tg-theme-bg-color, #ffffff);
+    color: var(--tg-theme-text-color, #000000);
+    padding: 12px 12px 90px;
+    min-height: 100vh;
+  }
+  .app-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; margin-bottom: 12px;
+    background: var(--tg-theme-secondary-bg-color, #f1f1f1);
+    border-radius: 16px;
+  }
+  .app-header .logo { font-size: 28px; line-height: 1; }
+  .app-header .title { font-size: 18px; font-weight: 700; }
+  .app-header .subtitle { font-size: 12px; opacity: .6; margin-top: 2px; }
+  .card {
+    background: var(--tg-theme-secondary-bg-color, #f2f3f5);
+    border-radius: 16px; padding: 14px; margin-bottom: 10px;
+  }
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  h2 { font-size: 15px; margin: 14px 0 8px; opacity: .7; font-weight: 600; }
+  .row { display: flex; justify-content: space-between; margin: 6px 0; font-size: 15px; }
+  .bar { height: 8px; background: rgba(0,0,0,.12); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .bar > div { height: 100%; transition: width .3s; }
+  .hunger > div { background: #4caf50; }
+  .joy > div { background: #ffb300; }
+  button {
+    width: 100%; padding: 13px; border: none; border-radius: 12px;
+    background: var(--tg-theme-button-color, #2481cc);
+    color: var(--tg-theme-button-text-color, #ffffff);
+    font-size: 15px; font-weight: 600; margin-bottom: 8px; cursor: pointer;
+  }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid button { margin: 0; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tabs button {
+    flex: 1; margin: 0;
+    background: var(--tg-theme-secondary-bg-color, #eee);
+    color: var(--tg-theme-text-color, #000);
+    padding: 10px; font-size: 14px;
+  }
+  .tabs button.active { background: var(--tg-theme-button-color, #2481cc); color: #fff; }
+  .top-item {
+    display: flex; justify-content: space-between;
+    padding: 8px 2px; border-bottom: 1px solid rgba(0,0,0,.08); font-size: 15px;
+  }
+  .top-item:last-child { border-bottom: none; }
+  .hidden { display: none; }
+  .msg {
+    padding: 10px 12px; border-radius: 10px;
+    background: #ffe0e0; color: #b00020; margin-bottom: 10px; font-size: 14px;
+  }
+  .msg.ok { background: #e0f7e9; color: #1b7a3d; }
+  .name-form { display: flex; gap: 8px; margin-top: 8px; }
+  .name-form input {
+    flex: 1; padding: 12px; border-radius: 12px;
+    border: 1px solid rgba(0,0,0,.15);
+    background: var(--tg-theme-bg-color, #fff);
+    color: var(--tg-theme-text-color, #000);
+    font-size: 15px;
+  }
+  .name-form button { width: auto; padding: 12px 16px; margin: 0; }
+  .footer {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    padding: 10px 12px;
+    background: var(--tg-theme-bg-color, #fff);
+    border-top: 1px solid rgba(0,0,0,.08);
+    text-align: center; font-size: 13px; opacity: .7;
+  }
+</style>
+</head>
+
+<!-- ============================================ -->
+<!-- Раздел 3 — Заголовок и экран имени            -->
+<!-- ============================================ -->
+<body>
+
+<header class="app-header">
+  <div class="logo">🐕</div>
+  <div>
+    <div class="title">Такса-работяга</div>
+    <div class="subtitle">корми, играй, зарабатывай 🌭</div>
+  </div>
+</header>
+
+<div id="error" class="msg hidden"></div>
+
+<div id="name-screen" class="card hidden">
+  <h1>Как назовёшь таксу?</h1>
+  <p style="font-size:14px;opacity:.7">Имя можно задать один раз.</p>
+  <div class="name-form">
+    <input id="name-input" maxlength="30" placeholder="Имя таксы...">
+    <button id="name-save">ОК</button>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- Раздел 4 — Карточка таксы и вкладки           -->
+<!-- ============================================ -->
+<div id="main-screen" class="hidden">
+
+  <div class="card">
+    <h1 id="dog-name">Такса</h1>
+    <div class="row"><span>⭐ Уровень</span><b id="level">0</b></div>
+    <div class="row"><span>💵 Валюта</span><b><span id="currency">0</span>🌭</b></div>
+
+    <div class="row"><span>🍖 Голод</span><span id="hunger-val">100/100</span></div>
+    <div class="bar hunger"><div id="hunger-bar" style="width:100%"></div></div>
+
+    <div class="row" style="margin-top:10px"><span>😊 Радость</span><span id="joy-val">0</span></div>
+    <div class="bar joy"><div id="joy-bar" style="width:0%"></div></div>
+
+    <div id="job-status" class="hidden" style="margin-top:12px">
+      <div class="row"><span>💼 Работа</span><b id="job-name">—</b></div>
+      <button id="job-finish" class="hidden">💰 Забрать с работы</button>
+      <div id="job-timer" style="font-size:14px;opacity:.7;margin-top:4px"></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button data-tab="actions" class="active">Действия</button>
+    <button data-tab="work">Работа</button>
+    <button data-tab="top">Топ</button>
+  </div>
+
+<!-- ============================================ -->
+<!-- Раздел 5 — Вкладки: Действия, Работа, Топ     -->
+<!-- ============================================ -->
+  <div id="tab-actions">
+    <div class="grid">
+      <button id="btn-feed">🍖 Покормить</button>
+      <button id="btn-play">🎾 Поиграть</button>
+    </div>
+    <h2>🎁 Подарки</h2>
+    <div class="grid">
+      <button data-gift="bone">🦴 Кость — 10🌭</button>
+      <button data-gift="ball">🎾 Мячик — 25🌭</button>
+      <button data-gift="toy">🧸 Игрушка — 50🌭</button>
+    </div>
+  </div>
+
+  <div id="tab-work" class="hidden">
+    <div id="jobs-list"></div>
+  </div>
+
+  <div id="tab-top" class="hidden">
+    <div class="grid" style="margin-bottom:10px">
+      <button id="top-level-btn">🏆 По уровню</button>
+      <button id="top-currency-btn">💰 По валюте</button>
+    </div>
+    <div id="top-list" class="card"></div>
+  </div>
+
+</div>
+
+<div class="footer">Такса-работяга • Mini App</div>
+
+<!-- ============================================ -->
+<!-- Раздел 6 — JS: инициализация и API            -->
+<!-- ============================================ -->
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+const initData = tg.initData || "";
+let me = null;
+let jobs = {};
+let timerId = null;
+
+function showError(text, ok=false) {
+  const el = document.getElementById("error");
+  el.textContent = text;
+  el.className = "msg" + (ok ? " ok" : "");
+  setTimeout(() => el.classList.add("hidden"), 3500);
+}
+
+async function api(path, body=null, method="POST") {
+  const opts = { method, headers: { "Content-Type": "application/json" } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    let detail = "Ошибка";
+    try { detail = (await res.json()).detail || detail; } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+function post(path, extra={}) {
+  return api(path, { init_data: initData, ...extra });
+}
+
+// ============================================ //
+// Раздел 7 — JS: отрисовка и таймер            //
+// ============================================ //
+function render(u) {
+  me = u;
+
+  if (!u.name) {
+    document.getElementById("name-screen").classList.remove("hidden");
+    document.getElementById("main-screen").classList.add("hidden");
+    return;
+  }
+  document.getElementById("name-screen").classList.add("hidden");
+  document.getElementById("main-screen").classList.remove("hidden");
+
+  document.getElementById("dog-name").textContent = u.name;
+  document.getElementById("level").textContent = u.level;
+  document.getElementById("currency").textContent = u.currency;
+
+  document.getElementById("hunger-val").textContent = u.hunger + "/100";
+  document.getElementById("hunger-bar").style.width = u.hunger + "%";
+
+  document.getElementById("joy-val").textContent = u.joy;
+  document.getElementById("joy-bar").style.width = Math.min(100, u.joy % 100) + "%";
+
+  const jobBox = document.getElementById("job-status");
+  const finishBtn = document.getElementById("job-finish");
+  const timer = document.getElementById("job-timer");
+
+  if (u.job) {
+    jobBox.classList.remove("hidden");
+    document.getElementById("job-name").textContent = u.job_name || "—";
+    if (u.can_finish) {
+      finishBtn.classList.remove("hidden");
+      timer.textContent = "";
+      if (timerId) { clearInterval(timerId); timerId = null; }
+    } else {
+      finishBtn.classList.add("hidden");
+      startTimer(u.job_left);
+    }
+  } else {
+    jobBox.classList.add("hidden");
+    if (timerId) { clearInterval(timerId); timerId = null; }
+  }
+
+  renderJobs();
+}
+
+function startTimer(seconds) {
+  if (timerId) clearInterval(timerId);
+  let left = seconds;
+  const timer = document.getElementById("job-timer");
+  const tick = () => {
+    if (left <= 0) {
+      clearInterval(timerId);
+      timerId = null;
+      timer.textContent = "Можно забирать!";
+      refresh();
+      return;
+    }
+    timer.textContent = `Осталось: ${Math.floor(left/60)}м ${left%60}с`;
+    left--;
+  };
+  tick();
+  timerId = setInterval(tick, 1000);
+}
+
+// ============================================ //
+// Раздел 8 — JS: вкладки и работы              //
+// ============================================ //
+function switchTab(tab) {
+  document.querySelectorAll(".tabs button").forEach(b => {
+    b.classList.toggle("active", b.dataset.tab === tab);
+  });
+  document.getElementById("tab-actions").classList.toggle("hidden", tab !== "actions");
+  document.getElementById("tab-work").classList.toggle("hidden", tab !== "work");
+  document.getElementById("tab-top").classList.toggle("hidden", tab !== "top");
+  if (tab === "top") loadTop("level");
+}
+
+function renderJobs() {
+  const box = document.getElementById("jobs-list");
+  box.innerHTML = "";
+  if (!me) return;
+  if (me.job) {
+    box.innerHTML = '<div class="card" style="opacity:.7">Такса уже работает — заверши текущую работу.</div>';
+    return;
+  }
+  Object.entries(jobs).forEach(([key, j]) => {
+    const available = me.level >= j.min && me.level <= j.max;
+    const btn = document.createElement("button");
+    btn.textContent = `${j.name} — ${j.income}🌭/ч` + (available ? "" : " 🔒");
+    btn.disabled = !available;
+    btn.onclick = () => startJob(key);
+    box.appendChild(btn);
+  });
+}
+
+async function startJob(job) {
+  try {
+    const u = await post("/api/job/start", { job });
+    render(u);
+    switchTab("actions");
+  } catch (e) { showError(e.message); }
+}
+
+async function finishJob() {
+  try {
+    const res = await post("/api/job/finish");
+    render(res.user);
+    showError("💰 Получено " + res.income + "🌭", true);
+  } catch (e) { showError(e.message); }
+}
+
+// ============================================ //
+// Раздел 9 — JS: действия                      //
+// ============================================ //
+async function doFeed() {
+  try { render(await post("/api/feed")); } catch (e) { showError(e.message); }
+}
+
+async function doPlay() {
+  try { render(await post("/api/play")); } catch (e) { showError(e.message); }
+}
+
+async function buyGift(gift) {
+  try {
+    render(await post("/api/gift", { gift }));
+    showError("🎁 Подарок вручён!", true);
+  } catch (e) { showError(e.message); }
+}
+
+async function saveName() {
+  const name = document.getElementById("name-input").value.trim();
+  if (!name) { showError("Введи имя"); return; }
+  try { render(await post("/api/set_name", { name })); } catch (e) { showError(e.message); }
+}
+
+// ============================================ //
+// Раздел 10 — JS: топы, запуск, конец файла     //
+// ============================================ //
+async function loadTop(kind) {
+  try {
+    const data = await api(`/api/top/${kind}`, null, "GET");
+    const list = document.getElementById("top-list");
+    if (!data.length) {
+      list.innerHTML = '<div style="opacity:.6">Пока пусто</div>';
+      return;
+    }
+    list.innerHTML = data.map((u, i) =>
+      `<div class="top-item"><span>${i+1}. ${u.dog_name}</span><b>${kind === "level" ? "ур. " + u.level : u.currency + "🌭"}</b></div>`
+    ).join("");
+  } catch (e) { showError(e.message); }
+}
+
+async function refresh() {
+  try {
+    const u = await post("/api/me");
+    render(u);
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+function bind() {
+  document.getElementById("name-save").onclick = saveName;
+  document.getElementById("btn-feed").onclick = doFeed;
+  document.getElementById("btn-play").onclick = doPlay;
+  document.getElementById("job-finish").onclick = finishJob;
+  document.getElementById("top-level-btn").onclick = () => loadTop("level");
+  document.getElementById("top-currency-btn").onclick = () => loadTop("currency");
+  document.querySelectorAll(".tabs button").forEach(b => {
+    b.onclick = () => switchTab(b.dataset.tab);
+  });
+  document.querySelectorAll("[data-gift]").forEach(b => {
+    b.onclick = () => buyGift(b.dataset.gift);
+  });
+}
+
+async function boot() {
+  bind();
+  if (!initData) {
+    showError("Открой Mini App через бота Telegram.");
+    return;
+  }
+  try {
+    const [u, j] = await Promise.all([
+      post("/api/me"),
+      api("/api/jobs", null, "GET"),
+    ]);
+    jobs = j;
+    render(u);
+  } catch (e) {
+    showError("Ошибка загрузки: " + e.message);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
